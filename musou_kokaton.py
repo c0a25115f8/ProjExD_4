@@ -223,34 +223,51 @@ class Enemy(pg.sprite.Sprite):
             self.state = "stop"
         self.rect.move_ip(self.vx, self.vy)
 
-class EMP(pg.sprite.Sprite):
-    """
-    電磁パルス（EMP）に関するクラス
-    """
-    def __init__(self, emys: pg.sprite.Group, bombs: pg.sprite.Group, screen: pg.Surface):
+
+class Gravity(pg.sprite.Sprite):
+    """重力場に関するクラス"""
+    def __init__(self, life: int):
         super().__init__()
-        # 敵機の無効化処理
-        for emy in emys:
-            emy.interval = float("inf")  # 爆弾投下インターバルを無限大に
-            emy.image = pg.transform.laplacian(emy.image)  # ラプラシアンフィルタ
-            emy.image.set_colorkey((0, 0, 0))
-            
-        # 爆弾の無効化処理
-        for bomb in bombs:
-            bomb.speed /= 2  # 落下速度を半減
-            bomb.state = "inactive"  # 状態を無効化
-            
-        # 画面のフラッシュ（黄色の矩形）
         self.image = pg.Surface((WIDTH, HEIGHT))
-        self.image.set_alpha(100)
-        self.image.fill((255, 255, 0))
+        pg.draw.rect(self.image, (0, 0, 0), (0, 0, WIDTH, HEIGHT))
+        self.image.set_alpha(128)
         self.rect = self.image.get_rect()
-        self.life = 3  # 約0.05秒間表示
+        self.life = life
 
     def update(self):
         self.life -= 1
         if self.life < 0:
             self.kill()
+
+
+class EMP(pg.sprite.Sprite):
+
+    """電磁パルス（EMP）に関するクラス"""
+
+    def __init__(self, emys: pg.sprite.Group, bombs: pg.sprite.Group, life: int = 3):
+        super().__init__()
+        # 発動時の一括無効化処理
+        for emy in emys:
+            emy.interval = float("inf")
+            emy.image = pg.transform.laplacian(emy.image)
+            emy.image.set_colorkey((0, 0, 0))
+            
+        for bomb in bombs:
+            bomb.speed /= 2
+            bomb.state = "inactive"
+            
+        # フラッシュ表示の設定（screen引数は削除）
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        self.image.set_alpha(100)
+        self.image.fill((255, 255, 0))
+        self.rect = self.image.get_rect()
+        self.life = life
+
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
 
 class Score:
     """
@@ -282,6 +299,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravities = pg.sprite.Group()
     emps = pg.sprite.Group()
 
     tmr = 0
@@ -293,10 +311,16 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_g:
+                if score.value > 200:
+                    gravities.add(Gravity(400))
+                    score.value -= 200
+
             if event.type == pg.KEYDOWN and event.key == pg.K_e:
                 if score.value >= 20:  # 発動条件：スコアが20以上
                     score.value -= 20  # スコアを20消費
                     emps.add(EMP(emys, bombs, screen))
+                    
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -315,6 +339,12 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
+
+        for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
+            exps.add(Explosion(emy, 100))
+
+        for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
+            exps.add(Explosion(bomb, 50))
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             if bomb.state == "active":
@@ -336,6 +366,8 @@ def main():
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        gravities.update()
+        gravities.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
