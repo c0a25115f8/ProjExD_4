@@ -263,10 +263,10 @@ class Life:
         残機数に応じてハートを表示する
         """
         for i in range(self.num):
-            screen.blit(
-                self.image,
-                (WIDTH - 50 - 40 * i, HEIGHT - 70)
-            )
+           x = WIDTH - 50 - 20 - 40 * i
+           y = HEIGHT - 50 - 20
+
+           screen.blit(self.image, (x, y))
 
 
 def main():
