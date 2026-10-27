@@ -392,6 +392,12 @@ def main():
             exps.add(Explosion(bomb, 50))
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
+            
+            if bird.state == "hyper":                           # ★追加[cite: 32]
+                            exps.add(Explosion(bomb, 50))                   # ★追加[cite: 32]
+                            score.value += 1                                # ★追加[cite: 32]
+                            continue  
+            
             life.num -= 1
             if life.num <= 0:
                 bird.change_img(8, screen)  # こうかとん悲しみエフェクト
@@ -399,15 +405,6 @@ def main():
                 pg.display.update()
                 time.sleep(2)
                 return
-            if bird.state == "hyper":                           # ★追加[cite: 32]
-                exps.add(Explosion(bomb, 50))                   # ★追加[cite: 32]
-                score.value += 1                                # ★追加[cite: 32]
-                continue                                        # ★追加
-            bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
 
         bird.update(key_lst, screen)
         beams.update()
