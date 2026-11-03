@@ -279,6 +279,43 @@ class EMP(pg.sprite.Sprite):
             self.kill()
 
 
+class Shield(pg.sprite.Sprite):
+    """
+    防御壁に関するクラス
+    こうかとんの向いている方向に、青い矩形の壁を出現させる
+    """
+    def __init__(self, bird: Bird, life: int):
+        """
+        防御壁Surfaceを生成する
+        引数1 bird：防御壁を張るこうかとん
+        引数2 life：発動時間（フレーム数）
+        """
+        super().__init__()
+        vx, vy = bird.dire
+        angle = math.degrees(math.atan2(-vy, vx))  # こうかとんの向きの角度
+
+        w, h = 20, bird.rect.height * 2            # 幅20，高さ＝身長の2倍
+        base = pg.Surface((w, h), pg.SRCALPHA)     # SRCALPHAで回転後に黒くならない
+        pg.draw.rect(base, (0, 0, 255), (0, 0, w, h))
+
+        self.image = pg.transform.rotozoom(base, angle, 1.0)  # 向きに合わせて回転
+        self.rect = self.image.get_rect()
+
+        dx = math.cos(math.radians(angle))
+        dy = -math.sin(math.radians(angle))
+        self.rect.centerx = bird.rect.centerx + bird.rect.width * dx   # 1体分ずらして配置
+        self.rect.centery = bird.rect.centery + bird.rect.height * dy
+        self.life = life
+
+    def update(self):
+        """
+        発動時間を1減算し、0未満になったら防御壁を消す
+        """
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
+
 class Score:
     """
     打ち落とした爆弾，敵機の数をスコアとして表示するクラス
@@ -339,6 +376,7 @@ def main():
     emys = pg.sprite.Group()
     gravities = pg.sprite.Group()
     emps = pg.sprite.Group()
+    shields = pg.sprite.Group()  # ★追加機能5：防御壁グループ
 
     tmr = 0
     clock = pg.time.Clock()
@@ -366,6 +404,13 @@ def main():
                     bird.hyper_life = 500       # 発動時間500フレーム[cite: 32]
                     score.value -= 100          # スコア消費[cite: 32]
 
+
+            # ★追加機能5：「s」キー押下，スコアが50より大，防御壁が存在しない
+            if event.type == pg.KEYDOWN and event.key == pg.K_s:
+                if score.value > 50 and len(shields) == 0:
+                    shields.add(Shield(bird, 400))  # 発動時間400フレーム
+                    score.value -= 50               # スコアを50消費
+            
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -391,6 +436,10 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
             exps.add(Explosion(bomb, 50))
 
+        # ★追加機能5：防御壁と衝突した爆弾を破壊する（防御壁自体は残る）
+        for bomb in pg.sprite.groupcollide(bombs, shields, True, False).keys():
+            exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
             
             if bird.state == "hyper":                           # ★追加[cite: 32]
@@ -415,6 +464,8 @@ def main():
         bombs.draw(screen)
         gravities.update()
         gravities.draw(screen)
+        shields.update()
+        shields.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
